@@ -1,0 +1,88 @@
+// src/components/Dashboard.js
+import React from 'react';
+import { readItems, addItem } from '../utils/storage';
+
+function todaySummary() {
+  const items = readItems();
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const end = start + 24*3600*1000;
+  const todayItems = items.filter(it => {
+    const t = new Date(it.time).getTime();
+    return t >= start && t < end;
+  });
+
+  // water = glasses with unit 'water' (sum values)
+  const water = todayItems.filter(i => i.type==='water').reduce((s,i)=>s + Number(i.value||0), 0);
+  const steps = todayItems.filter(i=>i.type==='steps').reduce((s,i)=>s + Number(i.value||0), 0);
+  const sleep = todayItems.filter(i=>i.type==='sleep').reduce((s,i)=>s + Number(i.value||0), 0);
+  return { water, steps, sleep };
+}
+
+export default function Dashboard({ onOpenLog, onOpenHistory }) {
+  const s = todaySummary();
+
+  const quickLog = (type) => {
+    // quick defaults
+    let value = 1;
+    if (type === 'water') value = 1; // 1 glass
+    if (type === 'steps') value = 500; // 500 steps
+    if (type === 'sleep') value = 0.5; // 0.5 hour
+    const item = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      type,
+      value,
+      notes: 'Quick log',
+      time: new Date().toISOString()
+    };
+    addItem(item);
+    // small visual feedback via custom event
+    window.dispatchEvent(new CustomEvent('pht:updated'));
+  };
+
+  return (
+    <div className="screen">
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div>
+          <div className="small">{new Date().toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric' })}</div>
+          <h2 style={{ margin:'6px 0 0' }}>Today's summary</h2>
+          <div className="small" style={{ marginTop:6 }}>Tap quick actions or open Log to add custom entries</div>
+        </div>
+
+        <div style={{ textAlign:'right' }}>
+          <button className="btn" onClick={onOpenHistory}>History</button>
+          <button className="btn" onClick={onOpenLog} style={{ marginLeft:8 }}>Log activity</button>
+        </div>
+      </div>
+
+      <div className="grid" style={{ marginTop:14 }}>
+        <div className="card">
+          <h3>Water (glasses)</h3>
+          <div className="big">{s.water}</div>
+          <div className="quick">
+            <button className="qbtn small" onClick={()=>quickLog('water')}>+1 glass</button>
+            <button className="btn" onClick={()=>onOpenLog('water')}>Log water</button>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Steps</h3>
+          <div className="big">{s.steps}</div>
+          <div className="quick">
+            <button className="qbtn small" onClick={()=>quickLog('steps')}>+500</button>
+            <button className="btn" onClick={()=>onOpenLog('steps')}>Log steps</button>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Sleep (hours)</h3>
+          <div className="big">{s.sleep}</div>
+          <div className="quick">
+            <button className="qbtn small" onClick={()=>quickLog('sleep')}>+0.5 hr</button>
+            <button className="btn" onClick={()=>onOpenLog('sleep')}>Log sleep</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
